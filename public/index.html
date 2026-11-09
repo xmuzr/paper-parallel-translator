@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f5f5f0">
+  <title>译读 · 论文对照翻译</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" type="module"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="译读首页"><span class="brand-icon" aria-hidden="true">译</span><span>译读</span></a>
+    <nav aria-label="页面工具"><span id="save-status" class="save-status">草稿保存在此浏览器</span><button id="export-pdf-button" class="quiet-button" disabled>导出 PDF</button><button id="glossary-button" class="quiet-button">术语表</button><button id="settings-button" class="quiet-button"><span aria-hidden="true">⚙</span> 翻译设置</button></nav>
+  </header>
+  <main>
+    <section class="workspace" aria-label="英文与中文对照翻译">
+      <div id="workspace-left-resizer" class="edge-resizer outer-edge-resizer left-edge-resizer" role="separator" aria-label="调整左边框宽度" aria-orientation="vertical" tabindex="0" title="调整左边框宽度"><span class="resize-grip" aria-hidden="true"></span></div>
+      <div id="workspace-right-resizer" class="edge-resizer outer-edge-resizer right-edge-resizer" role="separator" aria-label="调整右边框宽度" aria-orientation="vertical" tabindex="0" title="调整右边框宽度"><span class="resize-grip" aria-hidden="true"></span></div>
+      <div id="workspace-top-resizer" class="edge-resizer horizontal-edge-resizer top-edge-resizer" role="separator" aria-label="调整上边框高度" aria-orientation="horizontal" tabindex="0" title="调整上边框高度"><span class="resize-grip" aria-hidden="true"></span></div>
+      <div id="workspace-drag-handle" class="workspace-toolbar" role="toolbar" aria-label="顶部拖动栏，可移动整个工作区" tabindex="0" title="按住空白处拖动整个大框，方向键也可移动">
+        <div class="workspace-label"><span class="status-dot"></span> 对照翻译 <span class="toolbar-separator"></span><button id="example-button" class="text-button">试试示例 <span aria-hidden="true">↗</span></button><button id="reset-size-button" class="text-button muted">默认大小</button></div>
+        <div class="toolbar-actions"><label class="model-label" for="provider">翻译服务</label><select id="provider" aria-label="翻译服务"><option value="deepseek">DeepSeek</option><option value="openai">OpenAI</option></select><select id="model" aria-label="翻译模型"><option value="deepseek-flash">DeepSeek · Flash</option><option value="deepseek-v4-pro">DeepSeek · Pro</option></select><span id="connection-status" class="connection">未连接</span></div>
+      </div>
+      <div class="columns">
+        <section class="editor-column source-column" aria-labelledby="source-title">
+          <div class="column-heading"><div><span class="language-tag">EN</span><h2 id="source-title">英文原文</h2></div><button id="clear-button" class="text-button muted">清空</button></div>
+          <div class="input-wrap"><div class="source-shell"><div id="source-mirror" class="source-mirror" aria-hidden="true"></div><textarea id="source" aria-label="输入英文原文" spellcheck="false" maxlength="60000" placeholder="输入或粘贴英文…"></textarea></div></div>
+          <div class="column-footer"><span id="word-count">0 words · 0 字符</span><button id="source-width-handle" class="source-width-handle" aria-label="拖动调整英文框宽度" title="左右拖动调整英文框宽度">↔</button></div>
+        </section>
+        <div id="column-resizer" class="column-resizer" role="separator" aria-label="调整左右文字框宽度" aria-orientation="vertical" aria-valuenow="50" aria-valuemin="20" aria-valuemax="80" tabindex="0" title="左右拖动调整英文和中文框的宽度"><span aria-hidden="true">↔</span></div>
+        <section class="editor-column target-column" aria-labelledby="target-title">
+          <div class="column-heading"><div><span class="language-tag zh-tag">中</span><h2 id="target-title">中文译文</h2><span id="result-label" class="result-label" hidden></span></div><button id="copy-button" class="text-button muted" disabled>复制译文 <span aria-hidden="true">⧉</span></button></div>
+          <div id="target" class="target-content" aria-live="polite"><div id="empty-state" class="empty-state">译文显示在这里</div><div id="translations"></div></div>
+          <div class="column-footer"><span id="translation-count">等待输入</span><button id="download-button" class="text-button muted" disabled>导出对照 .txt <span aria-hidden="true">↓</span></button></div>
+        </section>
+      </div>
+      <div class="workspace-bottom"><p id="progress-status" role="status"></p><div><button id="stop-button" class="secondary-button" hidden>停止翻译</button><span class="shortcut">Ctrl / ⌘ + Enter</span><button id="translate-button" class="primary-button">开始翻译 <span aria-hidden="true">↗</span></button></div></div>
+      <div id="workspace-resizer" class="edge-resizer horizontal-edge-resizer workspace-resizer" role="separator" aria-label="调整下边框高度" aria-orientation="horizontal" tabindex="0" title="调整下边框高度"><span class="resize-grip" aria-hidden="true"></span></div>
+      <div class="progress-track" aria-hidden="true"><div id="progress-bar"></div></div>
+    </section>
+  </main>
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <form id="settings-form">
+      <div class="dialog-heading"><h2 id="settings-title">翻译设置</h2><button id="close-settings" type="button" class="close-button" aria-label="关闭设置">×</button></div>
+      <label class="field-label" for="settings-provider">配置服务</label><select id="settings-provider"><option value="deepseek">DeepSeek</option><option value="openai">OpenAI</option></select>
+      <label class="field-label" id="api-key-label" for="api-key">DeepSeek API Key</label><input id="api-key" type="password" autocomplete="off" placeholder="sk-…" maxlength="512"><p class="field-help" id="key-help">密钥仅保存在本机服务的临时内存中，不写入浏览器草稿。</p>
+      <label class="field-label" for="api-model">模型</label><div class="model-picker-row"><select id="api-model" aria-label="选择翻译模型"></select><button id="load-models-button" type="button" class="secondary-button">读取可用模型</button></div><input id="custom-model" maxlength="128" autocomplete="off" placeholder="输入其他 API 模型名称" aria-label="手动输入模型名称" hidden><p id="models-status" class="field-help" role="status"></p><p id="provider-note" class="field-help"></p>
+      <label class="field-label" for="glossary">我的术语表 <span>可选</span></label><textarea id="glossary" rows="5" maxlength="2000" placeholder="每行一项，例如：&#10;path planning = 路径规划&#10;bidirectional search = 双向搜索"></textarea><p class="field-help">点击翻译时，正文与术语表仅发送至当前选择的服务。</p>
+      <p id="settings-message" class="settings-message" role="status"></p>
+      <div class="dialog-footer"><a id="api-key-link" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer">获取 API Key ↗</a><div><button type="button" id="disconnect-button" class="text-button muted">断开当前服务</button><button type="submit" class="primary-button" id="save-settings">保存设置</button></div></div>
+    </form>
+  </dialog>
+  <dialog id="pdf-dialog" aria-labelledby="pdf-title">
+    <form id="pdf-form">
+      <div class="dialog-heading"><h2 id="pdf-title">导出 PDF</h2><button id="close-pdf" type="button" class="close-button" aria-label="关闭 PDF 导出">×</button></div>
+      <label class="field-label" for="pdf-name">标题 <span>可选</span></label><input id="pdf-name" maxlength="100" placeholder="例如：论文阅读笔记">
+      <fieldset class="pdf-options"><legend class="field-label">导出内容</legend>
+        <label class="pdf-option"><input type="radio" name="pdf-mode" value="en">英文原文</label>
+        <label class="pdf-option"><input type="radio" name="pdf-mode" value="zh">中文译文</label>
+        <label class="pdf-option"><input type="radio" name="pdf-mode" value="both" checked>中英对照</label>
+      </fieldset>
+      <p id="pdf-note" class="field-help"></p>
+      <p class="field-help">A4 排版。打印窗口中选择“另存为 PDF”；取消“页眉和页脚”可去掉网页地址。</p>
+      <div class="dialog-footer"><span></span><button class="primary-button" type="submit">生成 PDF</button></div>
+    </form>
+  </dialog>
+  <article id="pdf-document" class="pdf-document"></article>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

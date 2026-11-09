@@ -1,0 +1,8 @@
+{
+  "name": "paper-parallel-translator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node server.mjs", "test": "node --test test/*.test.mjs", "check:secrets": "node scripts/check-secrets.mjs", "check:staged": "node scripts/check-secrets.mjs --staged" },
+  "engines": { "node": ">=22" }
+}

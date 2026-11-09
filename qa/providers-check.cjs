@@ -1,0 +1,83 @@
+const { chromium } = require('playwright');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+
+(async () => {
+  const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  try {
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto('http://127.0.0.1:8765');
+    await page.locator('#connection-status').filter({ hasText: '未连接' }).waitFor();
+    await page.locator('#settings-button').click();
+    await page.locator('#api-key').fill('sk-mock-deepseek-browser-test');
+    await page.locator('#save-settings').click();
+    await page.locator('#settings-dialog').waitFor({ state: 'hidden' });
+    assert.equal(await page.locator('#connection-status').textContent(), '已配置');
+    await page.locator('#settings-button').click();
+    await page.locator('#settings-provider').selectOption('openai');
+    assert.equal(await page.locator('#provider').inputValue(), 'openai');
+    assert.equal(await page.locator('#api-key').inputValue(), '');
+    assert.equal(await page.locator('#api-key-label').textContent(), 'OpenAI API Key');
+    await page.locator('#api-key').fill('sk-mock-openai-browser-test');
+    await page.locator('#api-model').selectOption('gpt-5.4-mini');
+    await page.locator('#save-settings').click();
+    await page.locator('#settings-dialog').waitFor({ state: 'hidden' });
+    assert.equal(await page.locator('#connection-status').textContent(), '已配置');
+    const called = [];
+    await page.route('**/api/translate', route => {
+      const body = route.request().postDataJSON(); called.push(body);
+      return route.fulfill({ json: { translation: `${body.provider} 的译文。`, provider: body.provider, model: body.model,
+        alignment: [{ id: 's0', source: 'One sentence.', translation: `${body.provider} 的译文。` }] } });
+    });
+    await page.locator('#source').fill('One sentence.');
+    await page.locator('#translate-button').click();
+    await page.locator('#progress-status').filter({ hasText: '翻译完成' }).waitFor();
+    assert.equal(called[0].provider, 'openai');
+    assert.equal(called[0].model, 'gpt-5.4-mini');
+    await page.locator('#provider').selectOption('deepseek');
+    assert.equal(await page.locator('#connection-status').textContent(), '已配置');
+    assert.match(await page.locator('#translations').textContent(), /openai 的译文/);
+    await page.locator('#model').selectOption('deepseek-v4-pro');
+    await page.locator('#translate-button').click();
+    await page.locator('#progress-status').filter({ hasText: '翻译完成' }).waitFor();
+    assert.equal(called[1].provider, 'deepseek');
+    assert.equal(called[1].model, 'deepseek-v4-pro');
+    await page.locator('#provider').selectOption('openai');
+    assert.equal(await page.locator('#model').inputValue(), 'gpt-5.4-mini');
+    await page.locator('#settings-button').click();
+    await page.locator('#api-model').selectOption('gpt-5.4');
+    await page.locator('#save-settings').click();
+    await page.locator('#settings-dialog').waitFor({ state: 'hidden' });
+    assert.equal(await page.locator('#model').inputValue(), 'gpt-5.4');
+    await page.reload();
+    await page.locator('#connection-status').filter({ hasText: '已配置' }).waitFor();
+    assert.equal(await page.locator('#provider').inputValue(), 'openai');
+    assert.equal(await page.locator('#model').inputValue(), 'gpt-5.4');
+    await page.locator('#provider').selectOption('deepseek');
+    assert.equal(await page.locator('#model').inputValue(), 'deepseek-v4-pro');
+    await page.locator('#provider').selectOption('openai');
+    await page.locator('#settings-button').click();
+    await page.locator('#disconnect-button').click();
+    await page.locator('#connection-status').filter({ hasText: '未连接' }).waitFor();
+    assert.equal(await page.locator('#connection-status').textContent(), '未连接');
+    await page.locator('#close-settings').click();
+    await page.locator('#provider').selectOption('deepseek');
+    assert.equal(await page.locator('#connection-status').textContent(), '已配置');
+    const stored = await page.evaluate(() => JSON.stringify(localStorage));
+    assert.doesNotMatch(stored, /sk-mock-deepseek|sk-mock-openai/);
+    await page.screenshot({ path: path.join(__dirname, 'provider-selection.png'), fullPage: true });
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await page.locator('#settings-button').click();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    await page.screenshot({ path: path.join(__dirname, 'provider-settings-mobile.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+    console.log('Provider UI checks passed: separate key setup, service/model switching, correct translation routing, saved selection, model editing without re-entering key, per-service disconnect, no keys in drafts, mobile layout. Translation routes mocked; no paid API calls.');
+  } finally {
+    for (const provider of ['deepseek', 'openai']) await context.request.post('http://127.0.0.1:8765/api/session', { data: { provider, clear: true } }).catch(() => {});
+    await browser.close();
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });

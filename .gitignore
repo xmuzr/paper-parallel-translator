@@ -1,0 +1,15 @@
+.env*
+!.env.example
+node_modules/
+.codex/
+.npmrc
+*.log
+logs/
+*.key
+*.pem
+credentials*.json
+secrets*.json
+auth.json
+qa/*.png
+qa/*.pdf
+qa/验证记录.md
